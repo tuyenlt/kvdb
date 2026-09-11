@@ -1,0 +1,97 @@
+# =========================
+# Build
+# =========================
+
+build/
+out/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+CTestTestfile.cmake
+Makefile
+compile_commands.json
+install_manifest.txt
+cmake_install.cmake
+
+# =========================
+# Binary / Object files
+# =========================
+
+*.o
+*.obj
+*.a
+*.so
+*.so.*
+*.dll
+*.dylib
+*.exe
+
+# Executables without extension
+kvdb
+
+# =========================
+# Debug / Release
+# =========================
+
+Debug/
+Release/
+debug/
+release/
+
+# =========================
+# CMake
+# =========================
+
+CMakeUserPresets.json
+
+# =========================
+# IDE
+# =========================
+
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =========================
+# Clang / GCC
+# =========================
+
+*.d
+*.gcda
+*.gcno
+*.gcov
+
+# =========================
+# Debugging
+# =========================
+
+*.core
+core
+core.*
+vgcore.*
+
+# =========================
+# Logs
+# =========================
+
+*.log
+logs/
+
+# =========================
+# Generated / Runtime data
+# =========================
+
+tmp/
+temp/
+data/
+storage/
+
+# =========================
+# OS
+# =========================
+
+.DS_Store
+Thumbs.db
+
+.cache/
