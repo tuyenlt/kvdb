@@ -1,12 +1,17 @@
 #include "net/tcp_server.hpp"
+#include "command/command.hpp"
+#include "command/command_executer.hpp"
+#include "command/command_parser.hpp"
 #include "io/epoll.hpp"
 #include "io/poll_event.hpp"
 #include "lib/utils.hpp"
 #include "logger/logger.hpp"
+#include "net/protocol.hpp"
 #include "net/tcp_connection.hpp"
 
 #include <arpa/inet.h>
 #include <cstdio>
+#include <iostream>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -91,23 +96,25 @@ void TcpServer::start() {
           continue;
         }
 
-        if (res == TcpIOResult::DONE && read_callback_handler) {
-          read_callback_handler(conn);
+        if (res == TcpIOResult::DONE) {
+          while (try_one_request(conn)) {
+          }
         }
 
-        if (conn->get_interest_mask() & POLL_WANT_WRITE) {
-          poller.modify_poll_interest(
-              PollInterest(fd, conn->get_interest_mask(), PollTrigger::Edge));
-        }
-
-        if (conn->get_interest_mask() & POLL_WANT_CLOSE) {
+        if (conn->want_close()) {
           close_connection(fd);
           continue;
+        }
+
+        if (conn->want_write()) {
+          uint32_t mask = POLL_WANT_READ | POLL_WANT_WRITE;
+          poller.modify_poll_interest(
+              PollInterest(fd, mask, PollTrigger::Edge));
         }
       }
 
       if (events[i].mask & POLL_WRITEABLE) {
-        if (conn->get_interest_mask() & POLL_WANT_WRITE) {
+        if (conn->want_write()) {
           TcpIOResult res = conn->write_buffer();
           if (res == TcpIOResult::CLOSED || res == TcpIOResult::ERROR) {
             close_connection(fd);
@@ -115,9 +122,10 @@ void TcpServer::start() {
           }
         }
 
-        if (!(conn->get_interest_mask() & POLL_WANT_WRITE)) {
+        // If write drained fully, drop back to read-only interest
+        if (!conn->want_write()) {
           poller.modify_poll_interest(
-              PollInterest(fd, POLL_READABLE, PollTrigger::Edge));
+              PollInterest(fd, POLL_WANT_READ, PollTrigger::Edge));
         }
       }
 
@@ -127,6 +135,27 @@ void TcpServer::start() {
       }
     }
   }
+}
+
+bool TcpServer::try_one_request(TcpConnection *conn) {
+  try {
+    size_t ptr = 0;
+    RespValue value = RespParser::parse(conn->get_in_buffer(), ptr);
+    Command command = CommandParser::parse_from_resp(value);
+    std::cout << "recv command: " << command.type << " | args: ";
+    for (int i = 0; i < command.argv.size(); i++) {
+      std::cout << command.argv[i].value() << " ";
+    }
+    std::cout << std::endl;
+    RespValue res = CommandExecuter::execute(command, storage);
+    RespWriter::write(conn->get_out_buffer(), res);
+    buf_consume(conn->get_in_buffer(), ptr);
+    conn->set_want_write(true);
+    return true;
+  } catch (RespNotEnoughException &e) {
+    return false; // Not enough data, try again later
+  }
+  return true;
 }
 
 void TcpServer::accept_connection() {

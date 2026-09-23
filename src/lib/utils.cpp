@@ -2,22 +2,8 @@
 #include <arpa/inet.h>
 #include <cerrno>
 #include <cstdint>
-#include <fcntl.h>
 #include <system_error>
 #include <vector>
-
-void set_nonblocking_fd(int fd) {
-  int flags = fcntl(fd, F_GETFL, 0);
-  if (flags == -1) {
-    throw std::system_error(errno, std::generic_category(),
-                            "fcntl F_GETFL failed");
-  }
-
-  if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
-    throw std::system_error(errno, std::generic_category(),
-                            "fcntl F_SETFL failed");
-  }
-}
 
 void buf_append(std::vector<uint8_t> &buf, const uint8_t *data, size_t len) {
   if (!data || len == 0) {

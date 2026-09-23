@@ -1,5 +1,4 @@
 #include "net/tcp_connection.hpp"
-#include "io/poll_event.hpp"
 #include "lib/utils.hpp"
 #include <cerrno>
 #include <cstdint>
@@ -7,7 +6,6 @@
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <unistd.h>
-
 #include <utility>
 #include <vector>
 
@@ -58,7 +56,7 @@ TcpIOResult TcpConnection::write_buffer() {
     }
 
     if (len_write == 0) {
-      interest_mask |= POLL_WANT_WRITE;
+      want_write_ = true;
       return TcpIOResult::WBLOCK;
     }
 
@@ -68,7 +66,7 @@ TcpIOResult TcpConnection::write_buffer() {
       }
 
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        interest_mask |= POLL_WANT_WRITE;
+        want_write_ = true;
         return TcpIOResult::WBLOCK;
       }
 
@@ -80,7 +78,8 @@ TcpIOResult TcpConnection::write_buffer() {
     }
   }
 
-  interest_mask &= ~POLL_WANT_WRITE;
+  // All data flushed — no longer need write events
+  want_write_ = false;
   return TcpIOResult::DONE;
 }
 
@@ -88,8 +87,4 @@ void TcpConnection::add_write_buffer(const std::vector<uint8_t> &buffer) {
   buf_append(out_buffer, buffer.data(), buffer.size());
 }
 
-void TcpConnection::set_interest_mask(uint32_t mask) { interest_mask = mask; };
-
-uint32_t TcpConnection::get_interest_mask() { return interest_mask; };
-
-sockaddr_in TcpConnection::get_peer_addr() { return peer_addr; };
+sockaddr_in TcpConnection::get_peer_addr() { return peer_addr; }

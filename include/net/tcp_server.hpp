@@ -2,7 +2,7 @@
 
 #include "io/epoll.hpp"
 #include "net/tcp_connection.hpp"
-#include <functional>
+#include "storage/strorage.hpp"
 #include <netinet/in.h>
 #include <unordered_map>
 
@@ -14,15 +14,13 @@ class TcpServer {
   sockaddr_in listen_addr;
   std::unordered_map<int, TcpConnection *> connections;
   Epoll poller;
+  Storage storage;
   void accept_connection();
   void close_connection(int fd);
-  std::function<void(TcpConnection *conn)> read_callback_handler;
+  bool try_one_request(TcpConnection *conn);
 
 public:
   TcpServer();
   TcpServer(const char *addr, int port);
   void start();
-  void set_read_callback_handler(std::function<void(TcpConnection *conn)> cb) {
-    read_callback_handler = cb;
-  }
 };

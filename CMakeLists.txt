@@ -19,9 +19,16 @@ target_include_directories(kvdb
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-add_executable(client client/client.cpp)
+add_executable(client client/client.cpp src/net/protocol.cpp)
 
 target_include_directories(client
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+add_executable(test_protocol test/test.cpp src/net/protocol.cpp)
+
+target_include_directories(test_protocol
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
