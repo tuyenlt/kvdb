@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 // ─── RESP type sigils ────────────────────────────────────────────────────────
@@ -52,13 +53,17 @@ enum class RespType {
  * A tagged-union representing any parsed RESP value.
  *
  * Ownership model:
- *   - SimpleString / Error  → std::string  (owned copy)
- *   - BulkString            → std::optional<std::string>  (nullopt = null bulk)
+ *   - SimpleString / Error  → std::string_view  (non-owning, points into buf)
+ *   - BulkString            → std::string_view  (non-owning, points into buf;
+ *                             null bulk indicated by is_null)
  *   - Integer               → int64_t
  *   - Double                → double
- *   - Array                 → std::optional<std::vector<RespValue>>
- *                             (nullopt = null array)
+ *   - Array                 → std::vector<RespValue>
+ *                             (null array indicated by is_null)
  *   - Null                  → (no payload)
+ *
+ * IMPORTANT: str is a non-owning view. The underlying buffer must remain
+ * valid and unmodified for the lifetime of this RespValue.
  */
 struct RespValue {
   using Array = std::vector<RespValue>;
@@ -66,17 +71,17 @@ struct RespValue {
   RespType type;
 
   // Only one of these is active at a time (chosen by `type`).
-  std::string str; // SimpleString, Error, BulkString (non-null)
+  std::string_view str; // SimpleString, Error, BulkString (non-null)
   int64_t integer{0};
   double dbl{0.0};
   bool is_null{false};          // null bulk / null array
   std::vector<RespValue> array; // Array elements
 
   // ── Factories ─────────────────────────────────────────────────────────────
-  static RespValue make_simple_string(std::string s);
-  static RespValue make_error(std::string s);
+  static RespValue make_simple_string(std::string_view s);
+  static RespValue make_error(std::string_view s);
   static RespValue make_integer(int64_t v);
-  static RespValue make_bulk_string(std::string s);
+  static RespValue make_bulk_string(std::string_view s);
   static RespValue make_null_bulk();
   static RespValue make_array(std::vector<RespValue> elems);
   static RespValue make_null_array();
@@ -108,11 +113,12 @@ public:
   static RespValue parse(const std::vector<uint8_t> &buf, size_t &ptr);
 
   // ── Low-level type parsers (also usable individually) ────────────────────
-  static std::string parse_simple_string(const std::vector<uint8_t> &buf,
-                                         size_t &ptr);
-  static std::string parse_error(const std::vector<uint8_t> &buf, size_t &ptr);
+  static std::string_view parse_simple_string(const std::vector<uint8_t> &buf,
+                                              size_t &ptr);
+  static std::string_view parse_error(const std::vector<uint8_t> &buf,
+                                      size_t &ptr);
   static int64_t parse_integer(const std::vector<uint8_t> &buf, size_t &ptr);
-  static std::optional<std::string>
+  static std::optional<std::string_view>
   parse_bulk_string(const std::vector<uint8_t> &buf, size_t &ptr);
   static int64_t parse_array_len(const std::vector<uint8_t> &buf, size_t &ptr);
   static double parse_double(const std::vector<uint8_t> &buf, size_t &ptr);
@@ -130,10 +136,10 @@ public:
   static void write(std::vector<uint8_t> &out, const RespValue &val);
 
   static void write_simple_string(std::vector<uint8_t> &out,
-                                  const std::string &s);
-  static void write_error(std::vector<uint8_t> &out, const std::string &s);
+                                  std::string_view s);
+  static void write_error(std::vector<uint8_t> &out, std::string_view s);
   static void write_integer(std::vector<uint8_t> &out, int64_t v);
-  static void write_bulk_string(std::vector<uint8_t> &out, const std::string &s);
+  static void write_bulk_string(std::vector<uint8_t> &out, std::string_view s);
   static void write_null_bulk(std::vector<uint8_t> &out);
   static void write_array(std::vector<uint8_t> &out,
                           const std::vector<RespValue> &elems);

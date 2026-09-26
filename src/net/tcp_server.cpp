@@ -11,7 +11,6 @@
 
 #include <arpa/inet.h>
 #include <cstdio>
-#include <iostream>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -97,8 +96,7 @@ void TcpServer::start() {
         }
 
         if (res == TcpIOResult::DONE) {
-          while (try_one_request(conn)) {
-          }
+          process_requests(conn);
         }
 
         if (conn->want_close()) {
@@ -137,25 +135,26 @@ void TcpServer::start() {
   }
 }
 
-bool TcpServer::try_one_request(TcpConnection *conn) {
-  try {
-    size_t ptr = 0;
-    RespValue value = RespParser::parse(conn->get_in_buffer(), ptr);
-    Command command = CommandParser::parse_from_resp(value);
-    std::cout << "recv command: " << command.type << " | args: ";
-    for (int i = 0; i < command.argv.size(); i++) {
-      std::cout << command.argv[i].value() << " ";
+void TcpServer::process_requests(TcpConnection *conn) {
+  auto &in_buf = conn->get_in_buffer();
+  auto &out_buf = conn->get_out_buffer();
+  size_t ptr = 0;
+
+  while (ptr < in_buf.size()) {
+    try {
+      RespValue value = RespParser::parse(in_buf, ptr);
+      Command command = CommandParser::parse_from_resp(value);
+      RespValue res = CommandExecuter::execute(command, storage);
+      RespWriter::write(out_buf, res);
+    } catch (RespNotEnoughException &) {
+      break;
     }
-    std::cout << std::endl;
-    RespValue res = CommandExecuter::execute(command, storage);
-    RespWriter::write(conn->get_out_buffer(), res);
-    buf_consume(conn->get_in_buffer(), ptr);
-    conn->set_want_write(true);
-    return true;
-  } catch (RespNotEnoughException &e) {
-    return false; // Not enough data, try again later
   }
-  return true;
+
+  if (ptr > 0) {
+    buf_consume(in_buf, ptr);
+    conn->set_want_write(true);
+  }
 }
 
 void TcpServer::accept_connection() {

@@ -6,8 +6,8 @@
 #include <netinet/in.h>
 #include <unordered_map>
 
-#define SOCK_MAX_CONN 10
-#define MAX_POLL_EVENTS 40
+#define SOCK_MAX_CONN 100
+#define MAX_POLL_EVENTS 500
 
 class TcpServer {
   int listen_fd;
@@ -17,7 +17,7 @@ class TcpServer {
   Storage storage;
   void accept_connection();
   void close_connection(int fd);
-  bool try_one_request(TcpConnection *conn);
+  void process_requests(TcpConnection *conn);
 
 public:
   TcpServer();

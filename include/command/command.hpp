@@ -1,10 +1,9 @@
 #pragma once
 
-#include <optional>
-#include <string>
+#include <string_view>
 #include <vector>
 
 struct Command {
-  std::string type;
-  std::vector<std::optional<std::string>> argv;
+  std::string_view type;
+  std::vector<std::string_view> argv;
 };

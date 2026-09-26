@@ -94,3 +94,4 @@ test/
 Thumbs.db
 
 .cache/
+local/

@@ -15,6 +15,10 @@ Command CommandParser::parse_from_resp(RespValue &val) {
     if (val.array[i].type != RespType::BulkString) {
       throw CommandParserException("command must be bulk string");
     }
+    if (val.array[i].is_null) {
+      throw CommandParserException(
+          "null bulk string is not allowed in command");
+    }
     if (i == 0) {
       command.type = val.array[i].str;
     }
